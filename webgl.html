@@ -8,6 +8,8 @@
 		</style>
 	</head>
 	<body>
+
+        <!-- <div id="logdiv">test...</div> -->
 		
         <script type="module">
 
@@ -22,6 +24,7 @@
 			renderer.setPixelRatio( window.devicePixelRatio );
 			renderer.setSize( window.innerWidth, window.innerHeight );
             document.body.appendChild( renderer.domElement );
+
 
             // const geometry = new THREE.BoxGeometry();
             // const material = new THREE.MeshBasicMaterial( { color: 0x808080 } );
@@ -47,18 +50,37 @@
             directionalLight.position.set( 0, 0, 5 );
             scene.add( directionalLight );
 
-            let model;
+            let spheres = null;
+            
+            let model = null;
             const loader = new GLTFLoader();
             loader.load( '/models/abstract_sphere/scene.gltf', function ( gltf ) {
                 model = gltf.scene;
-                model.position.set(0,-1,0);
-                //model.rotation.y = -1.57;
-                model.scale.set( 1, 1, 1 );
-                scene.add( model );
+                createSpheres(model);
                 }, undefined, function ( error ) {
                     console.error( error );
                 } );
 
+            function createSpheres(modelTemplate){
+                var sphere = {};
+                spheres = [];
+
+                for (let i = 0; i < 10; i++) {
+                    sphere = {};
+                    sphere.model = modelTemplate.clone();
+                    sphere.model.position.set(rndV(1)*10,rndV(1)*10,rndV(1)*10 - 50);
+                    var s = 0.5 + Math.random() / 2;
+                    sphere.model.scale.set( s, s, s );
+                    sphere.velocity = new THREE.Vector3(rndV(3), rndV(3), 0.03);
+                    sphere.rotationvelocity = new THREE.Vector3(rndV(30), rndV(30), rndV(30));
+                    scene.add( sphere.model );
+                    spheres[i] = sphere;
+                }
+            }
+
+            function rndV(divider){
+                return ((Math.random() * 2) - 1)/divider;
+            }
 
             // const linematerial = new THREE.LineBasicMaterial( { color: 0x0000ff } );
             // const points = [];
@@ -76,51 +98,62 @@
             controls.maxDistance = 50;
             controls.enablePan = false;
 
-            let xd = 0.1;
-            let yd = 0.1;
-            let zd = 0.1;
             let x, y, z;
+            let currentpos, newpos;
             
             const animate = function () {
                 requestAnimationFrame( animate );
 
-                model.rotation.x += 0.01;
-                model.rotation.y += 0.01;
+                if( spheres == null ) return;
 
-                x = model.position.x + xd;
-                y = model.position.y + yd;
-                z = model.position.z + zd;
+                spheres.forEach(s => {
+                    s.model.rotation.x += s.rotationvelocity.x;
+                    s.model.rotation.y += s.rotationvelocity.y;
+                    s.model.rotation.z += s.rotationvelocity.z;
 
-                //console.log('x: ' + x);
-                //console.log('y: ' + y);
+                    currentpos = new THREE.Vector3(s.model.position.x, s.model.position.y, s.model.position.z);
+                    newpos = currentpos.clone();
 
-                if( x > camera.getFilmWidth()/2 ){
-                    xd *= -1;
+                    newpos.x += s.velocity.x;
+                    if( !checkPosition(newpos) ) {
+                        s.velocity.x *= -1;
+                        newpos.x = currentpos.x;
+                    }
+                    
+                    newpos.y += s.velocity.y;
+                    if( !checkPosition(newpos) ) {
+                        s.velocity.y *= -1;
+                        newpos.y = currentpos.y;
+                    }
+
+                    newpos.z += s.velocity.z;
+                    if( newpos.z > -50 ){
+                        s.velocity.z *= -1;
+                    }
+
+                    if( newpos.z < -100 ){
+                        s.velocity.z *= -1;
+                    }
+
+                    if( !checkPosition(newpos) ) {
+                        newpos.z = currentpos.z;
+                    }
+
+                    s.model.position.x = newpos.x;
+                    s.model.position.y = newpos.y;
+                    s.model.position.z = newpos.z;
+
+                    log("x: " + newpos.x + "\r\n" + 
+                        "y: " + newpos.y + "\r\n" +
+                        "z: " + newpos.z + "\r\n" +
+                        "ww: " + window.innerWidth + "\r\n" +
+                        "hw: " + window.innerHeight 
+                        );
+
                 }
+                );
+                
 
-                if( x < -camera.getFilmWidth()/2 ){
-                    xd *= -1;
-                }
-
-                if( y > camera.getFilmHeight()/2 ){
-                    yd *= -1;
-                }
-
-                if( y < -camera.getFilmHeight()/2 ){
-                    yd *= -1;
-                }
-
-                if( z > 0 ){
-                    zd *= -1;
-                }
-
-                if( z < -100 ){
-                    zd *= -1;
-                }
-
-                model.position.x = x;
-                model.position.y = y;
-                model.position.z = z;
 
                 renderer.render( scene, camera );
             };
@@ -130,15 +163,40 @@
 
             animate();
 
+            function checkPosition(pos){
+                camera.updateMatrix();
+                camera.updateMatrixWorld();
+                camera.updateProjectionMatrix();
+                var frustum = new THREE.Frustum();
+                frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));  
+                //frustum.setFromProjectionMatrix(camera.projectionMatrix);  
+
+                // Your 3d point to check
+                if( frustum.containsPoint(pos) ){
+                    return true;
+                }else{
+                    console.log("OUTSIDE!");
+                    return false;
+                }
+            }
+
             function onWindowResize() {
                 renderer.setSize( window.innerWidth, window.innerHeight );
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
                 render();
+                
             }
 
             function render() {
                 renderer.render( scene, camera );
+            }
+
+            function log(text){
+                var logdiv = document.getElementById('logdiv');
+                if( logdiv == null ) return;
+                logdiv.setAttribute('style', 'white-space: pre;');
+                logdiv.textContent = text;
             }
 
 		</script>
