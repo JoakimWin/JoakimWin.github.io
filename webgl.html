@@ -49,8 +49,7 @@
 
             let model;
             const loader = new GLTFLoader();
-            //loader.load( '/assets/scifi_girl_v.01/scene.gltf', function ( gltf ) {
-            loader.load( '/assets/abstract_sphere/scene.gltf', function ( gltf ) {
+            loader.load( '/models/abstract_sphere/scene.gltf', function ( gltf ) {
                 model = gltf.scene;
                 model.position.set(0,-1,0);
                 //model.rotation.y = -1.57;
@@ -92,8 +91,8 @@
                 y = model.position.y + yd;
                 z = model.position.z + zd;
 
-                console.log('x: ' + x);
-                console.log('y: ' + y);
+                //console.log('x: ' + x);
+                //console.log('y: ' + y);
 
                 if( x > camera.getFilmWidth()/2 ){
                     xd *= -1;
